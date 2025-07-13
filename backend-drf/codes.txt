@@ -1,0 +1,7 @@
+pip install yfinance pandas numpy matplotlib scikit-learn keras tensorflow
+
+
+./>
+python3.10 --version
+py -0
+py -3.10 -m venv env
