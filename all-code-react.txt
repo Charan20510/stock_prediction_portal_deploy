@@ -1,0 +1,664 @@
+D:\stock-prediction-portal-main\frontend-react\package.json
+
+{
+  "name": "stock-prediction-portal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "axios": "^1.10.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "vite": "^6.3.5"
+  }
+}
+
+
+
+D:\stock-prediction-portal-main\frontend-react\index.html
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Prediction Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
+
+
+
+D:\stock-prediction-portal-main\frontend-react\eslint.config.js
+
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+
+export default [
+  { ignores: ['dist'] },
+  {
+    files: ['**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...reactHooks.configs.recommended.rules,
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
+  },
+]
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\assets\css\style.css
+
+body{
+    background-color: #212529;
+}
+
+.bg-light-dark{
+    background-color: #2B3035;
+}
+
+#root{
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container{
+    flex: 1;
+}
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\dashboard\Dashboard.jsx
+
+import axios from 'axios'
+import React, { useEffect, useState } from 'react'
+import axiosInstance from '../../axiosInstance'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+
+const Dashboard = () => {
+    const [ticker, setTicker] = useState('')
+    const [error, setError] = useState()
+    const [loading, setLoading] = useState(false)
+    const [plot, setPlot] = useState()
+    const [ma100, setMA100] = useState()
+    const [ma200, setMA200] = useState()
+    const [prediction, setPrediction] = useState()
+    const [mse, setMSE] = useState()
+    const [rmse, setRMSE] = useState()
+    const [r2, setR2] = useState()
+
+    useEffect(() => {
+        const fetchProtectedDate = async () => {
+            try {
+                const response = await axiosInstance.get('/protected-view/')
+            } catch (error) {
+                console.error('Error fetching data', error)
+            }
+        }
+        fetchProtectedDate();
+    }, [])
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true)
+        try {
+            const response = await axiosInstance.post('/predict/', {
+                ticker: ticker
+            });
+            console.log(response.data);
+            const backendRoot = import.meta.env.VITE_BACKEND_ROOT
+            const plotUrl = `${backendRoot}${response.data.plot_img}`
+            const ma100Url = `${backendRoot}${response.data.plot_100_dma}`
+            const ma200Url = `${backendRoot}${response.data.plot_200_dma}`
+            const predictionUrl = `${backendRoot}${response.data.plot_prediction}`
+            setPlot(plotUrl)
+            setMA100(ma100Url)
+            setMA200(ma200Url)
+            setPrediction(predictionUrl)
+            setMSE(response.data.mse)
+            setRMSE(response.data.rmse)
+            setR2(response.data.r2)
+            // Set plots
+            if(response.data.error){
+                setError(response.data.error)
+            }
+        } catch (error) {
+            console.error('There was an error in making the API request', error)
+        } finally {
+            setLoading(false);
+        }
+    }
+
+
+  return (
+    <div className='container'>
+        <div className="row">
+            <div className="col-md-6 mx-auto">
+                <form onSubmit={handleSubmit}>
+                    <input type="text" className='form-control' placeholder='Enter Stock Ticker'
+                    onChange={(e) => setTicker(e.target.value)} required 
+                    />
+                    <small>{error && <div className='text-danger'>{error}</div>}</small>
+                    <button type='submit' className='btn btn-info mt-3'>
+                        {loading ? <span><FontAwesomeIcon icon={faSpinner} spin /> Please wait...</span>: 'See Prediction'}
+                    </button>
+                </form>
+            </div>
+
+            {/* Print prediction plots */}
+            {prediction && (
+                <div className="prediction mt-5">
+                    <div className="p-3">
+                        {plot && (
+                            <img src={plot} style={{ maxWidth: '100%' }} />
+                        )}
+                    </div>
+
+                    <div className="p-3">
+                        {ma100 && (
+                            <img src={ma100} style={{ maxWidth: '100%' }} />
+                        )}
+                    </div>
+
+                    <div className="p-3">
+                        {ma200 && (
+                            <img src={ma200} style={{ maxWidth: '100%' }} />
+                        )}
+                    </div>
+
+                    <div className="p-3">
+                        {prediction && (
+                            <img src={prediction} style={{ maxWidth: '100%' }} />
+                        )}
+                    </div>
+
+                    <div className="text-light p-3">
+                        <h4>Model Evalulation</h4>
+                        <p>Mean Squared Error (MSE): {mse}</p>
+                        <p>Root Mean Squared Error (RMSE): {rmse}</p>
+                        <p>R-Squared: {r2}</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    </div>
+  )
+}
+
+export default Dashboard
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\Button.jsx
+
+import React from 'react'
+import { Link } from 'react-router-dom'
+
+const Button = (props) => {
+  return (
+    <>
+        <Link className={`btn ${props.class}`} to={props.url}>{props.text}</Link>
+    </>
+  )
+}
+
+export default Button
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\Footer.jsx
+
+import React from 'react'
+
+const Footer = () => {
+  return (
+    <>
+        <footer className='footer py-3 my-3'>
+        <hr className='border-bottom' />
+        <p className="text-light text-center">&copy; 2025 - Build with ❤️ by Charan Tej</p>
+        </footer>
+    </>
+  )
+}
+
+export default Footer
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\Header.jsx
+
+import React, { useContext } from 'react'
+import Button from './Button'
+import { Link, useNavigate } from 'react-router-dom'
+import { AuthContext } from '../AuthProvider'
+
+const Header = () => {
+    const {isLoggedIn, setIsLoggedIn} = useContext(AuthContext)
+    const navigate = useNavigate()
+
+    const handleLogout = () => {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+        setIsLoggedIn(false)
+        console.log('Logged Out')
+        navigate('/login')
+    }
+  return (
+    <>
+        <nav className='navbar container pt-3 pb-3 align-items-start'>
+            <Link className='navbar-brand text-light' to='/'>Stock Prediction Portal</Link>
+
+            <div>
+              {isLoggedIn ? (
+                    <>
+                        <Button text='Dashboard' class='btn-info' url='/dashboard' />
+                        &nbsp;
+                        <button className="btn btn-danger" onClick={handleLogout}>Logout</button>
+                    </>
+              ) : (
+                  <>
+                        <Button text='Login' class='btn-outline-info' url='/login' />
+                        &nbsp;
+                        <Button text='Register' class='btn-info' url='/register' />
+                  </>
+              )}
+            </div>
+        </nav>
+    </>
+  )
+}
+
+export default Header
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\Login.jsx
+
+import React, { useContext, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+import axios from 'axios'
+import {useNavigate} from 'react-router-dom'
+import { AuthContext } from '../AuthProvider'
+
+const Login = () => {
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    const [loading, setLoading] = useState(false)
+    const navigate = useNavigate()
+    const [error, setError] = useState('')
+    const {isLoggedIn, setIsLoggedIn} = useContext(AuthContext)
+
+    const handleLogin = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+
+        const userData = {username, password}
+        console.log('userData==>', userData)
+
+        try {
+            const response = await axios.post('http://127.0.0.1:8000/api/v1/token/', userData)
+            localStorage.setItem('accessToken', response.data.access)
+            localStorage.setItem('refreshToken', response.data.refresh)
+            console.log('Login Successful')
+            setIsLoggedIn(true)
+            navigate('/dashboard')
+        } catch (error) {
+            console.error('Invalid Credentials')
+            setError('Invalid Credentials')
+        } finally {
+            setLoading(false)
+        }
+    }
+  return (
+    <>
+        <div className="container">
+            <div className="row justify-content-center">
+                <div className="col-md-6 bg-light-dark p-5 rounded">
+                    <h3 className="text-light text-center mb-4">Login to our Portal</h3>
+                    <form onSubmit={handleLogin}>
+                        <div className="mb-3">
+                            <input type="text" className='form-control' placeholder='Username' value={username} onChange={(e) => setUsername(e.target.value)} />
+                        </div>
+
+                        <div className="mb-2">
+                            <input type="password" className='form-control' placeholder='Set password' value={password} onChange={(e) => setPassword(e.target.value)} />
+                        </div>
+
+                        {error && <div className='text-danger'>{error}</div>}
+
+                        {loading ? (
+                            <button type='submit' className='btn btn-info d-block mx-auto' disabled><FontAwesomeIcon icon={faSpinner} spin /> Logging In...</button>
+                        ) : (
+                            <button type='submit' className='btn btn-info d-block mx-auto'>Login</button>
+                        )}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </>
+  )
+}
+
+export default Login
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\Main.jsx
+
+import React from 'react'
+import Button from './Button'
+
+const Main = () => {
+  return (
+    <>
+        <div className='container'>
+            <div className='p-5 text-center bg-light-dark rounded'>
+                <h1 className='text-light'>Stock Prediction Protal</h1>
+                <p className="text-light lead">Building a stock prediction portal with Python, Django REST Framework, React.js, and Machine Learning combines powerful tools for real-world financial insights. Python handles data processing and modeling, Django REST Framework ensures secure APIs, and React.js delivers a dynamic user interface. Machine learning algorithms provide accurate stock predictions, making this project ideal for mastering full-stack development and applying AI in finance.</p>
+                <Button text='Explore Now' class='btn-info' url='/dashboard' />
+            </div>
+        </div>
+    </>
+  )
+}
+
+export default Main
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\components\Register.jsx
+
+import React, { useState } from 'react'
+import axios from 'axios'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+
+const Register = () => {
+    const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [errors, setErrors] = useState({})
+    const [success, setSuccess] = useState(false)
+    const [loading, setLoading] = useState(false)
+
+    const handleRegistration = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        
+        const userData = {
+          username, email, password
+        }
+
+        try {
+            const response = await axios.post('http://127.0.0.1:8000/api/v1/register/', userData)
+            console.log('register.data===>', response.data)
+            console.log('Registration Successful')
+            setErrors({})
+            setSuccess(true)
+        } catch (error) {
+            setErrors(error.response.data)
+            console.error('Registration error', error.response.data)
+        } finally {
+            setLoading(false);
+        }
+    }
+  return (
+    <>
+        <div className="container">
+            <div className="row justify-content-center">
+                <div className="col-md-6 bg-light-dark p-5 rounded">
+                    <h3 className="text-light text-center mb-4">Create an Account</h3>
+                    <form onSubmit={handleRegistration}>
+                        <div className="mb-3">
+                            <input type="text" className='form-control' placeholder='Username' value={username} onChange={(e) => setUsername(e.target.value)} />
+                            <small>{errors.username && <div className='text-danger'>{errors.username}</div>}</small>
+                        </div>
+                        <div className="mb-3">
+                            <input type="email" className='form-control' placeholder='Email address' value={email} onChange={(e) => setEmail(e.target.value)} />
+                        </div>
+                        <div className="mb-3">
+                            <input type="password" className='form-control' placeholder='Set password' value={password} onChange={(e) => setPassword(e.target.value)} />
+                            <small>{errors.password && <div className='text-danger'>{errors.password}</div>}</small>
+                        </div>
+                        {success && <div className='alert alert-success'>Registration Successful</div>}
+                        {loading ? (
+                            <button type='submit' className='btn btn-info d-block mx-auto' disabled><FontAwesomeIcon icon={faSpinner} spin /> Please Wait...</button>
+                        ) : (
+                            <button type='submit' className='btn btn-info d-block mx-auto'>Register</button>
+                        )}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </>
+  )
+}
+
+export default Register
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\App.jsx
+
+import { useState } from 'react'
+import './assets/css/style.css'
+import Header from './components/Header'
+import Footer from './components/Footer'
+import Main from './components/Main'
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import Register from './components/Register'
+import Login from './components/Login'
+import AuthProvider from './AuthProvider'
+import Dashboard from './components/dashboard/Dashboard'
+import PrivateRoute from './PrivateRoute'
+import PublicRoute from './PublicRoute'
+
+function App() {
+
+  return (
+    <>
+      <AuthProvider>
+          <BrowserRouter>
+            <Header />
+            <Routes>
+              <Route path='/' element={<Main />} />
+              <Route path='/register' element={<PublicRoute><Register /></PublicRoute>} />
+              <Route path='/login' element={<PublicRoute><Login /></PublicRoute>} />
+              <Route path='/dashboard' element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+            </Routes>
+            <Footer />
+          </BrowserRouter>
+      </AuthProvider>
+    </>
+  )
+}
+
+export default App
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\AuthProvider.jsx
+
+import React, { createContext, useState, useContext } from 'react'
+
+// Create the Context
+const AuthContext = createContext();
+
+const AuthProvider = ({children}) => {
+    const [isLoggedIn, setIsLoggedIn] = useState(
+        !!localStorage.getItem('accessToken')
+    )
+  return (
+    <AuthContext.Provider value={{isLoggedIn, setIsLoggedIn}}>
+        {children}
+    </AuthContext.Provider>
+  )
+}
+
+export default AuthProvider
+export {AuthContext};
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\axiosInstance.js
+
+import axios from 'axios';
+
+const baseURL = import.meta.env.VITE_BACKEND_BASE_API
+const axiosInstance = axios.create({
+    baseURL: baseURL,
+    headers: {
+        'Content-Type': 'application/json',
+    }
+})
+
+
+// Request Interceptor
+axiosInstance.interceptors.request.use(
+    function(config){
+        const accessToken = localStorage.getItem('accessToken');
+        if(accessToken){
+            config.headers['Authorization'] = `Bearer ${accessToken}`
+        }
+        console.log(config);
+        return config;
+    },
+    function(error){
+        return Promise.reject(error);
+    }
+)
+
+// Response Interceptor
+axiosInstance.interceptors.response.use(
+    function(response){
+        return response;
+    },
+    // Handle failed responses
+    async function(error){
+        const originalRequest = error.config;
+        if(error.response.status === 401 && !originalRequest.retry){
+            originalRequest.retry = true;
+            const refreshToken = localStorage.getItem('refreshToken')
+            try {
+                const response = await axiosInstance.post('/token/refresh/', {refresh: refreshToken})
+                localStorage.setItem('accessToken', response.data.access)
+                originalRequest.headers['Authorization'] = `Bearer ${response.data.access}`
+                return axiosInstance(originalRequest)
+            } catch (error) {
+                localStorage.removeItem('accessToken')
+                localStorage.removeItem('refreshToken')
+            }
+        }
+        return Promise.reject(error);
+    }
+)
+
+
+export default axiosInstance;
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\main.jsx
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\PrivateRoute.jsx
+
+import React, { useContext } from 'react'
+import { AuthContext } from './AuthProvider'
+import { Navigate } from 'react-router-dom'
+
+const PrivateRoute = ({children}) => {
+    const { isLoggedIn } = useContext(AuthContext)
+  return isLoggedIn ? (
+    children
+  ) : (
+    <Navigate to='/login' />
+  )
+}
+
+export default PrivateRoute
+
+
+
+D:\stock-prediction-portal-main\frontend-react\src\PublicRoute.jsx
+
+import React, { useContext } from 'react'
+import { AuthContext } from './AuthProvider'
+import { Navigate } from 'react-router-dom'
+
+const PublicRoute = ({children}) => {
+    const { isLoggedIn } = useContext(AuthContext)
+  return !isLoggedIn ? (
+    children
+  ) : (
+    <Navigate to='/dashboard' />
+  )
+}
+
+export default PublicRoute
+
+
+
+D:\stock-prediction-portal-main\frontend-react\.env
+
+VITE_BACKEND_BASE_API=http://127.0.0.1:8000/api/v1
+VITE_BACKEND_ROOT=http://127.0.0.1:8000
